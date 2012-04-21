@@ -13,7 +13,7 @@
 
 // Pack a single number, figuring out which type of number it is
 + (void)packNumber:(NSNumber*)num into:(msgpack_packer*)pk {
-	CFNumberType numberType = CFNumberGetType((CFNumberRef)num);
+	CFNumberType numberType = CFNumberGetType((__bridge CFNumberRef)num);
 	switch (numberType)	{
 		case kCFNumberSInt8Type:
 			msgpack_pack_int8(pk, num.shortValue);
@@ -64,17 +64,23 @@
 		for (id arrayElement in obj) {
 			[self packObject:arrayElement into:pk];
 		}
+    } else if ([obj isKindOfClass:[NSSet class]]) {
+        [self packObject:[obj allObjects] into:pk];
+    } else if ([obj isKindOfClass:[NSOrderedSet class]]) {
+        [self packObject:[obj array] into:pk];
 	} else if ([obj isKindOfClass:[NSDictionary class]]) {
 		msgpack_pack_map(pk, ((NSDictionary*)obj).count);
 		for(id key in obj) {
 			[self packObject:key into:pk];
 			[self packObject:[obj objectForKey:key] into:pk];
 		}
-	} else if ([obj isKindOfClass:[NSString class]]) {
-		const char *str = ((NSString*)obj).UTF8String;
-		int len = strlen(str);
+    } else if ([obj isKindOfClass:[NSData class]]) {
+		const void *bytes = [obj bytes];
+		int len = [obj length];
 		msgpack_pack_raw(pk, len);
-		msgpack_pack_raw_body(pk, str, len);
+		msgpack_pack_raw_body(pk, bytes, len);
+	} else if ([obj isKindOfClass:[NSString class]]) {
+        [self packObject:[obj dataUsingEncoding:NSUTF8StringEncoding] into:pk];
 	} else if ([obj isKindOfClass:[NSNumber class]]) {
 		[self packNumber:obj into:pk];
 	} else if (obj==[NSNull null]) {
